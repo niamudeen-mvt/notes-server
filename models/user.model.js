@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const Notes = require("../models/notes.model")
 
 const userSchema = new mongoose.Schema({
   username: {
@@ -18,6 +19,15 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  notes: [
+    {
+      noteId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Notes"
+      },
+      message: String
+    }
+  ]
 });
 
 // secruring the password with bcrypt

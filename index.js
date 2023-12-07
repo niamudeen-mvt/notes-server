@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const router = require("./router/index.js");
 const connectDb = require("./utils/db.js");
+const colors = require('colors')
 
 const app = express();
 
@@ -18,6 +19,8 @@ app.get("/", (req, res) => {
 
 connectDb().then(() => {
   app.listen(process.env.PORT, () => {
-    console.log(`server is running at port: ${process.env.PORT}`);
+    console.log(`server is running at port: ${process.env.PORT}`.bgGreen);
   });
 });
+
+
