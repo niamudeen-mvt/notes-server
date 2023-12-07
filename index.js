@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const router = require("./router/index.js");
 const connectDb = require("./utils/db.js");
-const colors = require('colors')
+const colors = require("colors");
 
 const app = express();
 
@@ -14,7 +14,6 @@ app.use("/api/v1", router);
 
 app.get("/", (req, res) => {
   res.send("backend is working");
-  console.log(req.headers, "headers");
 });
 
 connectDb().then(() => {
@@ -22,5 +21,3 @@ connectDb().then(() => {
     console.log(`server is running at port: ${process.env.PORT}`.bgGreen);
   });
 });
-
-

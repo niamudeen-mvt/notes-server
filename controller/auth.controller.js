@@ -123,11 +123,13 @@ const userDetails = async (req, res) => {
 
 const editUserDetails = async (req, res) => {
   try {
-
-
-    const updatedUser = await User.findByIdAndUpdate({ _id: req.user.userId }, {
-      ...req.body
-    }, { new: true });
+    const updatedUser = await User.findByIdAndUpdate(
+      { _id: req.user.userId },
+      {
+        ...req.body,
+      },
+      { new: true }
+    );
 
     if (!updatedUser) {
       return res.status(400).send({
@@ -145,7 +147,5 @@ const editUserDetails = async (req, res) => {
     res.status(500).send({ msg: error });
   }
 };
-
-
 
 module.exports = { login, register, userDetails, editUserDetails };

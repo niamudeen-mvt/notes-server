@@ -1,34 +1,37 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const Notes = require("../models/notes.model")
+const Notes = require("../models/notes.model");
 
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-  },
-  email: {
-    type: String,
-  },
-  phone: {
-    type: Number,
-  },
-  password: {
-    type: String,
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false,
-  },
-  notes: [
-    {
-      noteId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Notes"
+const userSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+    },
+    email: {
+      type: String,
+    },
+    phone: {
+      type: Number,
+    },
+    password: {
+      type: String,
+    },
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    notes: [
+      {
+        noteId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Notes",
+        },
+        message: String,
       },
-      message: String
-    }
-  ]
-});
+    ],
+  },
+  { timestamps: true }
+);
 
 // secruring the password with bcrypt
 userSchema.pre("save", async function (next) {

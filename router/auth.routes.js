@@ -13,6 +13,8 @@ userRouter
 userRouter.route("/login").post(validateLoginSchema, authControllers.login);
 userRouter.route("/refresh-token").post(refreshToken);
 userRouter.route("/user").get(verifyToken, authControllers.userDetails);
-userRouter.route("/user/edit").patch(verifyToken, authControllers.editUserDetails);
+userRouter
+  .route("/user/edit")
+  .patch(verifyToken, authControllers.editUserDetails);
 
 module.exports = userRouter;
