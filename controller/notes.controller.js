@@ -1,48 +1,108 @@
 const Notes = require("../models/notes.model");
 
-const addNotes = async (req, res) => {
-  try {
-    const { message } = req.body;
-    const { userId } = req.user;
 
-    let userNotes = await Notes.findOne({ userId });
 
-    if (!userNotes) {
-      // new note
-      userNotes = new Notes({ userId, notes: [] });
+const multer = require("multer");
+const path = require("path");
 
-      userNotes.notes.push({ message });
-      const noteCreated = await userNotes.save();
-      res.status(201).send({
-        success: true,
-        message: "Note added successfully",
-        note: noteCreated,
-      });
+// Multer Storage Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/"); // Destination folder for uploaded files
+  },
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+    ); // File naming: fieldname-timestamp.ext
+  },
+});
+
+// Multer Upload Configuration
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 1024 * 1024 * 5 }, // Limit file size to 5MB (adjust as needed)
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
     } else {
-      const noteExist = userNotes?.notes?.find(
-        (note) => note.message === message
-      );
+      cb(new Error("Only images are allowed."));
+    }
+  },
+}).array("images", 5); // Accept up to 5 images, 'images' should match the input field name
 
-      if (noteExist) {
-        res.status(400).send({
-          success: true,
-          message: "Note already exist",
-        });
+
+const addNotes = async (req, res) => {
+  upload(req, res, (err) => {
+    if (err) {
+      console.log(err);
+      res.status(400).json({ message: err.message });
+    } else {
+
+
+      console.log(req.body, req.files)
+
+
+      if (!req.files || req.files.length === 0) {
+        res.status(400).json({ message: "No files uploaded." });
       } else {
-        userNotes.notes.push({ message });
-        const noteCreated = await userNotes.save();
-        res.status(201).send({
-          success: true,
-          message: "Note added successfully",
-          note: noteCreated,
-        });
+        const fileUrls = req.files.map((file) => ({
+          url: `/uploads/${file.filename}`,
+        }));
+        res.status(200).json({ files: fileUrls });
       }
     }
-  } catch (error) {
-    console.log(error);
-    res.status(500).send({ message: error });
-  }
+  });
 };
+
+
+
+
+
+
+// const addNotes = async (req, res) => {
+//   try {
+//     const { message } = req.body;
+//     const { userId } = req.user;
+
+//     let userNotes = await Notes.findOne({ userId });
+
+//     if (!userNotes) {
+//       // new note
+//       userNotes = new Notes({ userId, notes: [] });
+
+//       userNotes.notes.push({ message });
+//       const noteCreated = await userNotes.save();
+//       res.status(201).send({
+//         success: true,
+//         message: "Note added successfully",
+//         note: noteCreated,
+//       });
+//     } else {
+//       const noteExist = userNotes?.notes?.find(
+//         (note) => note.message === message
+//       );
+
+//       if (noteExist) {
+//         res.status(400).send({
+//           success: true,
+//           message: "Note already exist",
+//         });
+//       } else {
+//         userNotes.notes.push({ message });
+//         const noteCreated = await userNotes.save();
+//         res.status(201).send({
+//           success: true,
+//           message: "Note added successfully",
+//           note: noteCreated,
+//         });
+//       }
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send({ message: error });
+//   }
+// };
 
 const getUserNotes = async (req, res) => {
   try {
@@ -56,9 +116,9 @@ const getUserNotes = async (req, res) => {
         user: userNotes,
       });
     } else {
-      res.status(400).send({
+      res.status(200).send({
         success: true,
-        message: "Not found",
+        message: "Noes Not found",
       });
     }
   } catch (error) {
