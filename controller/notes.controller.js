@@ -1,9 +1,15 @@
-const Notes = require("../models/notes.model");
-
-
-
-const multer = require("multer");
 const path = require("path");
+const Notes = require("../models/notes.model");
+const multer = require("multer");
+const ImageKit = require("imagekit")
+
+// const imageKit = new ImageKit({
+//   publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+//   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+//   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+// })
+
+
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
@@ -32,42 +38,63 @@ const upload = multer({
 }).array("images", 5); // Accept up to 5 images, 'images' should match the input field name
 
 
+
 const addNotes = async (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
       console.log(err);
       res.status(400).json({ message: err.message });
     } else {
+      console.log("111111111");
       let fileUrls;
       if (!req.files || req.files.length === 0) {
         fileUrls = []
-      } else {
+      }
+      else {
         fileUrls = req.files.map((file) => ({
           image: `uploads/${file.filename}`,
         }));
       }
 
-      try {
-        console.log(req.body, req.files)
-        const { userId } = req.user;
-        const { message } = req.body;
+      console.log(fileUrls, "fileUrls")
+      const { userId } = req.user;
+      const { message } = req.body;
 
-        const bodyData = {
-          message: req.body.message,
-          images: fileUrls
-        }
-        console.log(bodyData)
+      const bodyData = {
+        message: req.body.message,
+        images: fileUrls
+      }
 
-        // step 1 finding note 
+      // step 1 finding note 
 
-        let userNotes = await Notes.findOne({ userId });
+      let userNotes = await Notes.findOne({ userId });
 
-        // step 2 checking note exist or not
+      // step 2 checking note exist or not
 
-        if (!userNotes) {
-          // new note
-          userNotes = new Notes({ userId, notes: [] });
+      if (!userNotes) {
+        // new note
+        userNotes = new Notes({ userId, notes: [] });
 
+        userNotes.notes.push(bodyData);
+        const noteCreated = await userNotes.save();
+        console.log(noteCreated)
+        res.status(201).send({
+          success: true,
+          message: "Note added successfully",
+          note: noteCreated,
+        });
+      }
+      else {
+        const noteExist = userNotes?.notes?.find(
+          (note) => note.message === message
+        );
+
+        if (noteExist) {
+          res.status(400).send({
+            success: true,
+            message: "Note already exist",
+          });
+        } else {
           userNotes.notes.push(bodyData);
           const noteCreated = await userNotes.save();
           console.log(noteCreated)
@@ -77,83 +104,13 @@ const addNotes = async (req, res) => {
             note: noteCreated,
           });
         }
-        else {
-          const noteExist = userNotes?.notes?.find(
-            (note) => note.message === message
-          );
-
-          if (noteExist) {
-            res.status(400).send({
-              success: true,
-              message: "Note already exist",
-            });
-          } else {
-            userNotes.notes.push(bodyData);
-            const noteCreated = await userNotes.save();
-            console.log(noteCreated)
-            res.status(201).send({
-              success: true,
-              message: "Note added successfully",
-              note: noteCreated,
-            });
-          }
-        }
-      } catch (error) {
-        console.log(error);
-        res.status(500).send({ message: error });
       }
+
     }
   });
 };
 
 
-
-
-
-
-// const addNotes = async (req, res) => {
-//   try {
-//     const { message } = req.body;
-//     const { userId } = req.user;
-
-//     let userNotes = await Notes.findOne({ userId });
-
-//     if (!userNotes) {
-//       // new note
-//       userNotes = new Notes({ userId, notes: [] });
-
-//       userNotes.notes.push({ message });
-//       const noteCreated = await userNotes.save();
-//       res.status(201).send({
-//         success: true,
-//         message: "Note added successfully",
-//         note: noteCreated,
-//       });
-//     } else {
-//       const noteExist = userNotes?.notes?.find(
-//         (note) => note.message === message
-//       );
-
-//       if (noteExist) {
-//         res.status(400).send({
-//           success: true,
-//           message: "Note already exist",
-//         });
-//       } else {
-//         userNotes.notes.push({ message });
-//         const noteCreated = await userNotes.save();
-//         res.status(201).send({
-//           success: true,
-//           message: "Note added successfully",
-//           note: noteCreated,
-//         });
-//       }
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).send({ message: error });
-//   }
-// };
 
 const getUserNotes = async (req, res) => {
   try {

@@ -6,6 +6,7 @@ const connectDb = require("./utils/db.js");
 const colors = require("colors");
 const path = require("path");
 
+
 const app = express();
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
