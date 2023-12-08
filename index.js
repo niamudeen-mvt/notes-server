@@ -4,12 +4,11 @@ const cors = require("cors");
 const router = require("./router/index.js");
 const connectDb = require("./utils/db.js");
 const colors = require("colors");
-const path = require("path");
-
+// const path = require("path");
 
 const app = express();
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(express.json());
 app.use(cors());

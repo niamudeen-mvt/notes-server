@@ -1,26 +1,28 @@
 const path = require("path");
 const Notes = require("../models/notes.model");
 const multer = require("multer");
-const ImageKit = require("imagekit")
+const ImageKit = require("imagekit");
+const fs = require("fs");
 
-// const imageKit = new ImageKit({
-//   publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-//   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-//   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
-// })
+const IMGKIT = new ImageKit({
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+});
 
-
+// Path to the folder where images are stored locally using Multer
+const localFolderPath = "uploads/";
 
 // Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Destination folder for uploaded files
+    cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
     cb(
       null,
       file.fieldname + "-" + Date.now() + path.extname(file.originalname)
-    ); // File naming: fieldname-timestamp.ext
+    );
   },
 });
 
@@ -35,82 +37,119 @@ const upload = multer({
       cb(new Error("Only images are allowed."));
     }
   },
-}).array("images", 5); // Accept up to 5 images, 'images' should match the input field name
-
-
+}).array("images", 8); // Accept up to 8 images, 'images' should match the input field name
 
 const addNotes = async (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
       console.log(err);
-      res.status(400).json({ message: err.message });
+      res.status(400).send({ message: err.message });
     } else {
-      console.log("111111111");
-      let fileUrls;
-      if (!req.files || req.files.length === 0) {
-        fileUrls = []
-      }
-      else {
-        fileUrls = req.files.map((file) => ({
-          image: `uploads/${file.filename}`,
-        }));
-      }
+      try {
+        const files = fs.readdirSync(localFolderPath);
 
-      console.log(fileUrls, "fileUrls")
-      const { userId } = req.user;
-      const { message } = req.body;
+        // Array to store promises of file uploads
+        const uploadPromises = [];
 
-      const bodyData = {
-        message: req.body.message,
-        images: fileUrls
-      }
+        // Loop through each file and create a promise for each upload
+        files.forEach((file) => {
+          const localFilePath = localFolderPath + file;
+          const uploadOptions = {
+            file: fs.createReadStream(localFilePath),
+            fileName: file,
+            folder: "/notes-project", // Change this to the desired folder in your ImageKit media library
+          };
 
-      // step 1 finding note 
-
-      let userNotes = await Notes.findOne({ userId });
-
-      // step 2 checking note exist or not
-
-      if (!userNotes) {
-        // new note
-        userNotes = new Notes({ userId, notes: [] });
-
-        userNotes.notes.push(bodyData);
-        const noteCreated = await userNotes.save();
-        console.log(noteCreated)
-        res.status(201).send({
-          success: true,
-          message: "Note added successfully",
-          note: noteCreated,
+          // Push the upload promise to the array
+          uploadPromises.push(
+            new Promise((resolve, reject) => {
+              IMGKIT.upload(uploadOptions, (err, result) => {
+                if (err) {
+                  console.error("Error uploading file to ImageKit:", err);
+                  reject(err); // Reject the promise if there's an error
+                } else {
+                  console.log("File uploaded successfully:", result);
+                  // Optionally, you can remove the local file after successful upload
+                  fs.unlink(localFilePath, (unlinkErr) => {
+                    if (unlinkErr) {
+                      console.error("Error deleting local file:", unlinkErr);
+                    } else {
+                      console.log("Local file deleted successfully");
+                    }
+                  });
+                  resolve(result); // Resolve the promise if successful
+                }
+              });
+            })
+          );
         });
-      }
-      else {
-        const noteExist = userNotes?.notes?.find(
-          (note) => note.message === message
-        );
 
-        if (noteExist) {
-          res.status(400).send({
-            success: true,
-            message: "Note already exist",
-          });
-        } else {
+        // Wait for all ImageKit upload promises to resolve
+        const imageKitUploads = await Promise.all(uploadPromises);
+
+        // Extract ImageKit URLs from the upload results
+        const fileUrls = imageKitUploads.map((result) => ({
+          image: result.url, // Assuming 'url' holds the ImageKit URL
+        }));
+
+        console.log(fileUrls, "fileUrls");
+        const { userId } = req.user;
+        const { message } = req.body;
+
+        const bodyData = {
+          message: req.body.message,
+          images: fileUrls,
+        };
+
+        // step 1 finding note
+
+        let userNotes = await Notes.findOne({ userId });
+
+        // step 2 checking note exist or not
+
+        if (!userNotes) {
+          // new note
+          userNotes = new Notes({ userId, notes: [] });
+
           userNotes.notes.push(bodyData);
           const noteCreated = await userNotes.save();
-          console.log(noteCreated)
+          console.log(noteCreated);
           res.status(201).send({
             success: true,
             message: "Note added successfully",
             note: noteCreated,
           });
-        }
-      }
+        } else {
+          const noteExist = userNotes?.notes?.find(
+            (note) => note.message === message
+          );
 
+          if (noteExist) {
+            res.status(400).send({
+              success: true,
+              message: "Note already exist",
+            });
+          } else {
+            userNotes.notes.push(bodyData);
+            const noteCreated = await userNotes.save();
+            console.log(noteCreated);
+            res.status(201).send({
+              success: true,
+              message: "Note added successfully",
+              note: noteCreated,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error reading folder or uploading files:", error);
+        res.status(500).send({
+          success: false,
+          message: "Error uploading images",
+        });
+      }
     }
   });
 };
-
-
 
 const getUserNotes = async (req, res) => {
   try {
@@ -221,4 +260,9 @@ const deleteNotes = async (req, res) => {
   }
 };
 
-module.exports = { addNotes, getUserNotes, deleteNotes, editNotes };
+module.exports = {
+  addNotes,
+  getUserNotes,
+  deleteNotes,
+  editNotes,
+};
