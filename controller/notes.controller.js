@@ -33,23 +33,74 @@ const upload = multer({
 
 
 const addNotes = async (req, res) => {
-  upload(req, res, (err) => {
+  upload(req, res, async (err) => {
     if (err) {
       console.log(err);
       res.status(400).json({ message: err.message });
     } else {
-
-
-      console.log(req.body, req.files)
-
-
+      let fileUrls;
       if (!req.files || req.files.length === 0) {
-        res.status(400).json({ message: "No files uploaded." });
+        fileUrls = []
       } else {
-        const fileUrls = req.files.map((file) => ({
-          url: `/uploads/${file.filename}`,
+        fileUrls = req.files.map((file) => ({
+          image: `uploads/${file.filename}`,
         }));
-        res.status(200).json({ files: fileUrls });
+      }
+
+      try {
+        console.log(req.body, req.files)
+        const { userId } = req.user;
+        const { message } = req.body;
+
+        const bodyData = {
+          message: req.body.message,
+          images: fileUrls
+        }
+        console.log(bodyData)
+
+        // step 1 finding note 
+
+        let userNotes = await Notes.findOne({ userId });
+
+        // step 2 checking note exist or not
+
+        if (!userNotes) {
+          // new note
+          userNotes = new Notes({ userId, notes: [] });
+
+          userNotes.notes.push(bodyData);
+          const noteCreated = await userNotes.save();
+          console.log(noteCreated)
+          res.status(201).send({
+            success: true,
+            message: "Note added successfully",
+            note: noteCreated,
+          });
+        }
+        else {
+          const noteExist = userNotes?.notes?.find(
+            (note) => note.message === message
+          );
+
+          if (noteExist) {
+            res.status(400).send({
+              success: true,
+              message: "Note already exist",
+            });
+          } else {
+            userNotes.notes.push(bodyData);
+            const noteCreated = await userNotes.save();
+            console.log(noteCreated)
+            res.status(201).send({
+              success: true,
+              message: "Note added successfully",
+              note: noteCreated,
+            });
+          }
+        }
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: error });
       }
     }
   });
