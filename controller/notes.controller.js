@@ -4,6 +4,8 @@ const multer = require("multer");
 const ImageKit = require("imagekit");
 const fs = require("fs");
 
+const FOLDER = "/notes-project";
+
 const IMGKIT = new ImageKit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
@@ -57,7 +59,7 @@ const addNotes = async (req, res) => {
           const uploadOptions = {
             file: fs.createReadStream(localFilePath),
             fileName: file,
-            folder: "/notes-project", // Change this to the desired folder in your ImageKit media library
+            folder: FOLDER, // Change this to the desired folder in your ImageKit media library
           };
 
           // Push the upload promise to the array
@@ -94,10 +96,11 @@ const addNotes = async (req, res) => {
 
         console.log(fileUrls, "fileUrls");
         const { userId } = req.user;
-        const { message } = req.body;
+        const { message, title } = req.body;
 
         const bodyData = {
-          message: req.body.message,
+          title,
+          message,
           images: fileUrls,
         };
 
