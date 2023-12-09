@@ -263,9 +263,53 @@ const deleteNotes = async (req, res) => {
   }
 };
 
+const deleteNoteImg = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { noteId, imgId } = req.body;
+
+    // Find the user's notes
+    let userNotes = await Notes.findOne({ userId });
+
+    if (userNotes) {
+      // Find the specific note by ID
+      const note = userNotes.notes.find((note) => note._id == noteId);
+
+      if (note) {
+        // Filter out the image with the given imgId from the note's images array
+        note.images = note.images.filter((image) => image._id != imgId);
+
+        // Save the changes to the database
+        const updatedUserNotes = await userNotes.save();
+
+        if (updatedUserNotes) {
+          return res.status(200).send({
+            success: true,
+            message: "Note image deleted successfully",
+          });
+        }
+      } else {
+        return res.status(404).send({
+          success: false,
+          message: "Note not found",
+        });
+      }
+    } else {
+      return res.status(404).send({
+        success: false,
+        message: "User notes not found",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({ message: error.message });
+  }
+};
+
 module.exports = {
   addNotes,
   getUserNotes,
   deleteNotes,
   editNotes,
+  deleteNoteImg,
 };

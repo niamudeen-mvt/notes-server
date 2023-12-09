@@ -10,4 +10,8 @@ notesRouter
   .route("/delete/:id")
   .patch(verifyToken, notesController.deleteNotes);
 
+notesRouter
+  .route("/delete-img")
+  .patch(verifyToken, notesController.deleteNoteImg);
+
 module.exports = notesRouter;
