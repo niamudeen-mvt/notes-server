@@ -97,6 +97,8 @@ const addNotes = async (req, res) => {
         console.log(fileUrls, "fileUrls");
         const { userId } = req.user;
         const { message, title } = req.body;
+        const { type, noteId } = req.query;
+        console.log(type, noteId);
 
         const bodyData = {
           title,
@@ -104,35 +106,58 @@ const addNotes = async (req, res) => {
           images: fileUrls,
         };
 
+        console.log("bodyData", bodyData);
         // step 1 finding note
 
         let userNotes = await Notes.findOne({ userId });
 
-        // step 2 checking note exist or not
-
-        if (!userNotes) {
-          // new note
-          userNotes = new Notes({ userId, notes: [] });
-
-          userNotes.notes.push(bodyData);
-          const noteCreated = await userNotes.save();
-          console.log(noteCreated);
-          res.status(201).send({
-            success: true,
-            message: "Note added successfully",
-            note: noteCreated,
-          });
-        } else {
+        if (type === "edit" && noteId) {
+          console.log("<<<<<<<<<<<<<<<<<<<<<< inside edit");
+          // finding note based on note id
           const noteExist = userNotes?.notes?.find(
-            (note) => note.message === message
+            (note) => note._id == noteId
           );
 
+          console.log(noteExist, "noteExist");
           if (noteExist) {
-            res.status(400).send({
-              success: true,
-              message: "Note already exist",
+            const updatedNoteList = userNotes?.notes?.map((note) => {
+              if (note._id == noteId) {
+                return bodyData;
+              }
+              return note;
             });
+
+            console.log(updatedNoteList, "updatedNoteList");
+            if (updatedNoteList) {
+              const updaedNotes = await Notes.updateOne(
+                { userId },
+                { $set: { notes: updatedNoteList } },
+                {
+                  new: true,
+                }
+              );
+
+              if (updaedNotes) {
+                res.status(200).send({
+                  success: true,
+                  message: "Note updated successfully",
+                  updaedNotes: updaedNotes,
+                });
+              }
+            }
           } else {
+            res.status(200).send({
+              success: true,
+              message: "Note does'nt exist",
+            });
+          }
+        } else {
+          // step 2 checking note exist or not
+
+          if (!userNotes) {
+            // new note
+            userNotes = new Notes({ userId, notes: [] });
+
             userNotes.notes.push(bodyData);
             const noteCreated = await userNotes.save();
             console.log(noteCreated);
@@ -141,6 +166,26 @@ const addNotes = async (req, res) => {
               message: "Note added successfully",
               note: noteCreated,
             });
+          } else {
+            const noteExist = userNotes?.notes?.find(
+              (note) => note.message === message
+            );
+
+            if (noteExist) {
+              res.status(400).send({
+                success: true,
+                message: "Note already exist",
+              });
+            } else {
+              userNotes.notes.push(bodyData);
+              const noteCreated = await userNotes.save();
+              console.log(noteCreated);
+              res.status(201).send({
+                success: true,
+                message: "Note added successfully",
+                note: noteCreated,
+              });
+            }
           }
         }
       } catch (error) {
