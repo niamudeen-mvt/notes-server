@@ -5,5 +5,6 @@ const notesRouter = require("./notes.routes");
 
 router.use("/auth", userRouter);
 router.use("/notes", notesRouter);
+router.use("/notes", notesRouter);
 
 module.exports = router;

@@ -14,4 +14,6 @@ notesRouter
   .route("/delete-img")
   .patch(verifyToken, notesController.deleteNoteImg);
 
+notesRouter.route("/upload").post(notesController.uploadImg);
+
 module.exports = notesRouter;

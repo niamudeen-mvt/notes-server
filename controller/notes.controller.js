@@ -3,6 +3,7 @@ const Notes = require("../models/notes.model");
 const multer = require("multer");
 const ImageKit = require("imagekit");
 const fs = require("fs");
+const { log } = require("console");
 
 const FOLDER = "/notes-project";
 
@@ -389,10 +390,69 @@ const deleteNoteImg = async (req, res) => {
   }
 };
 
+const uploadImg = async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) {
+      console.log(err);
+      res.status(400).send({ message: err.message });
+    } else {
+      try {
+        const files = fs.readdirSync(localFolderPath);
+
+        // Array to store promises of file uploads
+        const uploadPromises = [];
+
+        if (files) {
+          // Loop through each file and create a promise for each upload
+          files.forEach((file) => {
+            const localFilePath = localFolderPath + file;
+            const uploadOptions = {
+              file: fs.createReadStream(localFilePath),
+              fileName: file,
+              folder: "/", // Change this to the desired folder in your ImageKit media library
+            };
+
+            // Push the upload promise to the array
+            uploadPromises.push(
+              new Promise((resolve, reject) => {
+                IMGKIT.upload(uploadOptions, (err, result) => {
+                  if (err) {
+                    console.error("Error uploading file to ImageKit:", err);
+                    reject(err); // Reject the promise if there's an error
+                  } else {
+                    console.log("File uploaded successfully:", result);
+                    // Optionally, you can remove the local file after successful upload
+                    fs.unlink(localFilePath, (unlinkErr) => {
+                      if (unlinkErr) {
+                        console.error("Error deleting local file:", unlinkErr);
+                      } else {
+                        console.log("Local file deleted successfully");
+                      }
+                    });
+                    resolve(result); // Resolve the promise if successful
+                  }
+                });
+              })
+            );
+          });
+        }
+
+        // Wait for all ImageKit upload promises to resolve
+        const imageKitUploads = await Promise.all(uploadPromises);
+        console.log(imageKitUploads, "<<<<<<<<<<<<<<<<<<<");
+        res.send({ message: "image uplaoded successfully" });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  });
+};
+
 module.exports = {
   addNotes,
   getUserNotes,
   deleteNotes,
   editNotes,
   deleteNoteImg,
+  uploadImg,
 };
