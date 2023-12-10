@@ -8,6 +8,7 @@ const noteSchema = new mongoose.Schema(
     images: [
       {
         image: String,
+        fileId: String,
       },
     ],
     createdAt: { type: Date, default: Date.now },

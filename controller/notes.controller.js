@@ -2,82 +2,13 @@ const Notes = require("../models/notes.model");
 const ImageKit = require("imagekit");
 const User = require("../models/user.model");
 
+const FOLDER = "/notes-project";
+
 const IMGKIT = new ImageKit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
 });
-
-// const addNotes = async (req, res) => {
-//   try {
-//     const { userId } = req.user;
-//     const { message, title } = req.body;
-//     const { type, noteId } = req.query;
-
-//     const bodyData = {
-//       title,
-//       message,
-//       images: [],
-//     };
-
-//     let userNotes = await Notes.findOne({ userId });
-
-//     if (type === "edit" && noteId && userNotes) {
-//       const noteExist = userNotes.notes.findIndex((note) => note._id == noteId);
-
-//       if (noteExist !== -1) {
-//         // Update existing note
-//         userNotes.notes[noteExist] = bodyData;
-//         await userNotes.save();
-//         return res.status(200).send({
-//           success: true,
-//           message: "Note updated successfully",
-//         });
-//       } else {
-//         return res.status(200).send({
-//           success: true,
-//           message: "Note doesn't exist",
-//         });
-//       }
-//     } else {
-//       // ADD NOTE CASE
-
-//       console.log("add case <<<<<<<");
-
-//       if (!userNotes) {
-//         userNotes = new Notes({ userId, notes: [] });
-//       }
-
-//       console.log(userNotes);
-//       console.log(bodyData, "bodyData");
-
-//       const noteExist = userNotes.notes.find(
-//         (note) => note.message === message
-//       );
-
-//       if (noteExist) {
-//         return res.status(409).send({
-//           success: true,
-//           message: "Note already exists",
-//         });
-//       }
-
-//       userNotes.notes.push(bodyData);
-//       await userNotes.save();
-
-//       return res.status(201).send({
-//         success: true,
-//         message: "Note added successfully",
-//       });
-//     }
-//   } catch (error) {
-//     console.error("Error reading folder or uploading files:", error);
-//     return res.status(500).send({
-//       success: false,
-//       message: "Error uploading images",
-//     });
-//   }
-// };
 
 const getUserNotes = async (req, res) => {
   try {
@@ -219,7 +150,8 @@ const addNotes = async (req, res) => {
 
       const results = await Promise.all(uploadPromises);
       fileUrls = results.map((result) => ({
-        image: result.url, // Assuming 'url' holds the ImageKit URL
+        image: result.url,
+        fileId: result.fileId, // Assuming 'url' holds the ImageKit URL
       }));
     } else {
       fileUrls = [];
@@ -266,7 +198,7 @@ const addNotes = async (req, res) => {
 
 const editNotes = async (req, res) => {
   try {
-    const { title, message, images } = req.body;
+    const { title, message, prev_imgages, new_images } = req.body;
     const { userId } = req.user;
     const noteId = req.params.id;
 
@@ -285,14 +217,20 @@ const editNotes = async (req, res) => {
         updatedNote.message = message;
       }
 
-      if (Array.isArray(images) && images.length > 0) {
-        const uploadPromises = images.map(async (file) => {
+      if (Array.isArray(new_images) && new_images.length > 0) {
+        console.log("new images added");
+        const uploadPromises = new_images.map(async (file) => {
           const result = await uploadToImageKit(userId, file.data, file.key);
-          return { image: result.url }; // Assuming 'url' holds the ImageKit URL
+          return { image: result.url, fileId: result.fileId }; // Assuming 'url' holds the ImageKit URL
         });
 
         const fileUrls = await Promise.all(uploadPromises);
-        updatedNote.images = fileUrls;
+
+        const imageList = [...prev_imgages, ...fileUrls];
+
+        updatedNote.images = imageList;
+      } else {
+        updatedNote.images = prev_imgages;
       }
 
       userNotes.notes[noteIndex] = updatedNote;
@@ -303,7 +241,6 @@ const editNotes = async (req, res) => {
         message: "Note updated successfully",
       });
     }
-
     return res.status(200).send({
       success: true,
       message: "Note doesn't exist",
@@ -317,10 +254,34 @@ const editNotes = async (req, res) => {
   }
 };
 
+const deleteFolder = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    IMGKIT.deleteFolder(`${FOLDER}/${userId}`, function (error, result) {
+      if (error)
+        res.status(400).send({
+          success: false,
+          message: error.message,
+        });
+      else
+        res.status(200).status({
+          success: true,
+          message: "Folder Deleted",
+        });
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   addNotes,
   getUserNotes,
   deleteNotes,
   editNotes,
   deleteNoteImg,
+  deleteFolder,
 };
