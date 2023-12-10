@@ -53,38 +53,40 @@ const addNotes = async (req, res) => {
         // Array to store promises of file uploads
         const uploadPromises = [];
 
-        // Loop through each file and create a promise for each upload
-        files.forEach((file) => {
-          const localFilePath = localFolderPath + file;
-          const uploadOptions = {
-            file: fs.createReadStream(localFilePath),
-            fileName: file,
-            folder: FOLDER, // Change this to the desired folder in your ImageKit media library
-          };
+        if (files) {
+          // Loop through each file and create a promise for each upload
+          files.forEach((file) => {
+            const localFilePath = localFolderPath + file;
+            const uploadOptions = {
+              file: fs.createReadStream(localFilePath),
+              fileName: file,
+              folder: FOLDER, // Change this to the desired folder in your ImageKit media library
+            };
 
-          // Push the upload promise to the array
-          uploadPromises.push(
-            new Promise((resolve, reject) => {
-              IMGKIT.upload(uploadOptions, (err, result) => {
-                if (err) {
-                  console.error("Error uploading file to ImageKit:", err);
-                  reject(err); // Reject the promise if there's an error
-                } else {
-                  console.log("File uploaded successfully:", result);
-                  // Optionally, you can remove the local file after successful upload
-                  fs.unlink(localFilePath, (unlinkErr) => {
-                    if (unlinkErr) {
-                      console.error("Error deleting local file:", unlinkErr);
-                    } else {
-                      console.log("Local file deleted successfully");
-                    }
-                  });
-                  resolve(result); // Resolve the promise if successful
-                }
-              });
-            })
-          );
-        });
+            // Push the upload promise to the array
+            uploadPromises.push(
+              new Promise((resolve, reject) => {
+                IMGKIT.upload(uploadOptions, (err, result) => {
+                  if (err) {
+                    console.error("Error uploading file to ImageKit:", err);
+                    reject(err); // Reject the promise if there's an error
+                  } else {
+                    console.log("File uploaded successfully:", result);
+                    // Optionally, you can remove the local file after successful upload
+                    fs.unlink(localFilePath, (unlinkErr) => {
+                      if (unlinkErr) {
+                        console.error("Error deleting local file:", unlinkErr);
+                      } else {
+                        console.log("Local file deleted successfully");
+                      }
+                    });
+                    resolve(result); // Resolve the promise if successful
+                  }
+                });
+              })
+            );
+          });
+        }
 
         // Wait for all ImageKit upload promises to resolve
         const imageKitUploads = await Promise.all(uploadPromises);
@@ -94,99 +96,62 @@ const addNotes = async (req, res) => {
           image: result.url, // Assuming 'url' holds the ImageKit URL
         }));
 
-        console.log(fileUrls, "fileUrls");
         const { userId } = req.user;
         const { message, title } = req.body;
         const { type, noteId } = req.query;
-        console.log(type, noteId);
 
         const bodyData = {
           title,
           message,
-          images: fileUrls,
+          images: fileUrls ? fileUrls : [],
         };
-
-        console.log("bodyData", bodyData);
-        // step 1 finding note
 
         let userNotes = await Notes.findOne({ userId });
 
-        if (type === "edit" && noteId) {
-          console.log("<<<<<<<<<<<<<<<<<<<<<< inside edit");
-          // finding note based on note id
-          const noteExist = userNotes?.notes?.find(
+        if (type === "edit" && noteId && userNotes) {
+          const noteExist = userNotes.notes.findIndex(
             (note) => note._id == noteId
           );
 
-          console.log(noteExist, "noteExist");
-          if (noteExist) {
-            const updatedNoteList = userNotes?.notes?.map((note) => {
-              if (note._id == noteId) {
-                return bodyData;
-              }
-              return note;
-            });
+          if (noteExist !== -1) {
+            // if not exist
 
-            console.log(updatedNoteList, "updatedNoteList");
-            if (updatedNoteList) {
-              const updaedNotes = await Notes.updateOne(
-                { userId },
-                { $set: { notes: updatedNoteList } },
-                {
-                  new: true,
-                }
-              );
-
-              if (updaedNotes) {
-                res.status(200).send({
-                  success: true,
-                  message: "Note updated successfully",
-                  updaedNotes: updaedNotes,
-                });
-              }
-            }
-          } else {
-            res.status(200).send({
+            userNotes.notes[noteExist] = bodyData;
+            await userNotes.save();
+            return res.status(200).send({
               success: true,
-              message: "Note does'nt exist",
+              message: "Note updated successfully",
             });
           }
+          return res.status(200).send({
+            success: true,
+            message: "Note doesn't exist",
+          });
         } else {
-          // step 2 checking note exist or not
+          // ADD NOTE CASE
 
           if (!userNotes) {
-            // new note
             userNotes = new Notes({ userId, notes: [] });
-
-            userNotes.notes.push(bodyData);
-            const noteCreated = await userNotes.save();
-            console.log(noteCreated);
-            res.status(201).send({
-              success: true,
-              message: "Note added successfully",
-              note: noteCreated,
-            });
-          } else {
-            const noteExist = userNotes?.notes?.find(
-              (note) => note.message === message
-            );
-
-            if (noteExist) {
-              res.status(400).send({
-                success: true,
-                message: "Note already exist",
-              });
-            } else {
-              userNotes.notes.push(bodyData);
-              const noteCreated = await userNotes.save();
-              console.log(noteCreated);
-              res.status(201).send({
-                success: true,
-                message: "Note added successfully",
-                note: noteCreated,
-              });
-            }
           }
+
+          const noteExist = userNotes?.notes?.find(
+            (note) => note.message === message
+          );
+
+          if (noteExist) {
+            res.status(409).send({
+              success: true,
+              message: "Note already exist",
+            });
+          }
+
+          userNotes.notes.push(bodyData);
+          await userNotes.save();
+
+          return res.status(201).send({
+            success: true,
+            message: "Note added successfully",
+          });
         }
       } catch (error) {
         console.error("Error reading folder or uploading files:", error);

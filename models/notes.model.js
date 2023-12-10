@@ -12,8 +12,8 @@ const noteSchema = new mongoose.Schema(
     ],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
-  },
-  { timestamps: true }
+  }
+  // { timestamps: true }
 );
 
 const notesSchema = new mongoose.Schema(
@@ -23,8 +23,8 @@ const notesSchema = new mongoose.Schema(
       ref: "User",
     },
     notes: [noteSchema],
-  },
-  { timestamps: true }
+  }
+  // { timestamps: true }
 );
 
 // noteSchema.pre("save", function (next) {
