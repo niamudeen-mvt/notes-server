@@ -178,15 +178,15 @@ const addNotes = async (req, res) => {
         success: true,
         message: "Note already exist",
       });
+    } else {
+      userNotes.notes.push(bodyData);
+      await userNotes.save();
+
+      return res.status(201).send({
+        success: true,
+        message: "Note added successfully",
+      });
     }
-
-    userNotes.notes.push(bodyData);
-    await userNotes.save();
-
-    return res.status(201).send({
-      success: true,
-      message: "Note added successfully",
-    });
   } catch (error) {
     console.error("Error reading folder or uploading files:", error);
     res.status(500).send({
@@ -254,34 +254,10 @@ const editNotes = async (req, res) => {
   }
 };
 
-const deleteFolder = async (req, res) => {
-  try {
-    const { userId } = req.user;
-    IMGKIT.deleteFolder(`${FOLDER}/${userId}`, function (error, result) {
-      if (error)
-        res.status(400).send({
-          success: false,
-          message: error.message,
-        });
-      else
-        res.status(200).status({
-          success: true,
-          message: "Folder Deleted",
-        });
-    });
-  } catch (error) {
-    res.status(500).send({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
 module.exports = {
   addNotes,
   getUserNotes,
   deleteNotes,
   editNotes,
   deleteNoteImg,
-  deleteFolder,
 };
