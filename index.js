@@ -21,7 +21,7 @@ app.use(cors());
 app.use("/api/v1", router);
 
 app.get("/", (req, res) => {
-  res.send("auth server is working");
+  res.send("auth server is working !");
 });
 
 connectDb().then(() => {
